@@ -1,30 +1,9 @@
-'''
-all cell_types: 
-'CL:0000353 blastoderm cell' 'UBERON:0002107 liver'
- 'CL:0000057 fibroblast' 'CL:0002322 embryonic stem cell'
- 'CL:0000081 blood cell' 'UBERON:0000115 lung epithelium'
- 'CL:0001056 dendritic cell, human' 'CL:0000746 cardiac muscle cell'
- 'UBERON:0001851 cortex' 'CL:0002034 long term hematopoietic stem cell'
- 'CL:0002033 short term hematopoietic stem cell'
- 'CL:0000037 hematopoietic stem cell' 'CL:1000497 kidney cell'
- 'CL:0008019 mesenchymal cell' 'UBERON:0000044 dorsal root ganglion'
- 'CL:0002365 medullary thymic epithelial cell' 'UBERON:0000473 testis'
- 'UBERON:0000992 female gonad' 'UBERON:0000922 embryo'
- 'UBERON:0002048 lung' 'CL:0000137 osteocyte'
- 'UBERON:0001898 hypothalamus' 'UBERON:0001997 olfactory epithelium'
- 'CL:0002321 embryonic cell' 'CL:0002319 neural cell'
- 'UBERON:0004129 growth plate cartilage' 'UBERON:0001891 midbrain'
- 'UBERON:0002038 substantia nigra' 'UBERON:0000007 pituitary gland'
- 'CL:0000763 myeloid cell' 'CL:0000540 neuron' 'UBERON:0000045 ganglion'
- "UBERON:0001954 Ammon's horn" 'CL:0000127 astrocyte'
- 'CL:0000163 endocrine cell' 'UBERON:0000955 brain'
- 'UBERON:0000966 retina' 'UBERON:0002435 striatum'
- 'UBERON:0010743 meningeal cluster' 'CL:0000169 type B pancreatic cell'
- 'UBERON:0001264 pancreas' 'CL:0000084 T cell'
- 'UBERON:0001003 skin epidermis'
- 'UBERON:0001902 epithelium of small intestine' 'CL:0000235 macrophage'
- 'CL:0000192 smooth muscle cell'
- '''
+import keras
+import keras.backend as K
+import keras.models as KM
+import keras.layers as KL
+import keras.engine as KE
+from keras import optimizers
 
 cl_superclass_dict = {
 
@@ -60,10 +39,6 @@ cl_superclass_dict = {
   'CL:0002033 short term hematopoietic stem cell': 8,
   'CL:0000037 hematopoietic stem cell': 8,
 }
-
-cl_cell_superclasses = ['connective tissue', 'other', 'endocrine',
-    'embryo', 'muscle', 'leukocytes', 'haem/{stem, leuk}', 'brain',
-    'haem stem']
 
 uberon_classes = {
   "UBERON:0002048 lung":0,
@@ -189,50 +164,80 @@ def getuberon():
   x_test = store["x_test"].values
   y_test = store["y_test"].values
   y_test2 = store["y_test2"].values
-  return x_train,y_train,x_test,y_test
+  return x_train,y_train,y_train2,x_test,y_test,y_test2
+
+class StagedNN:
+  """
+  Staged NN for gene expression classification
+  """
+  def __init__(self,shapes):
+    """
+    shapes = (input_shape,h1_shape,o1_shape,h2_shape,o2_shape)
+    """
+    self.layershapes = shapes
+    self.build()
+
+  def build(self):
+    input_shape,h1_shape,o1_shape,h2_shape,o2_shape = self.layershapes
+    input_exp = KL.Input(shape=(input_shape,), name="input_expressions")
+    h1 = KL.Dense(h1_shape, activation="tanh", kernel_initializer="glorot_uniform")(input_exp)
+    self.o1 = KL.Dense(o1_shape,
+                       name="o1",
+                       activation = 'softmax',
+                       kernel_initializer = 'glorot_uniform')(h1)
+    h2a = KL.Dense(h2_shape,activation = 'tanh', kernel_initializer = 'glorot_uniform')(self.o1)
+    h2b = KL.Dense(h2_shape,activation = 'tanh', kernel_initializer = 'glorot_uniform')(h1)
+    h2 = KL.Add()([h2a,h2b])
+    self.o2 = KL.Dense(o2_shape, name="o2", activation = 'softmax',kernel_initializer = 'glorot_uniform')(h2)
+    self.model = KM.Model(inputs=input_exp,outputs=[self.o1,self.o2], name="staged_nn")
+    self.model.compile(optimizer = 'sgd', loss = 'categorical_crossentropy',
+                        metrics = ['accuracy'], loss_weights=[0.5,1.])
+  
+  def train(self,train_vectors,test_vectors,callbacks=[]):
+    x_train,y_train,y_train2 = train_vectors
+    x_test,y_test,y_test2 = test_vectors
+    return self.model.fit(x_train, 
+                          [y_train,y_train2], 
+                          batch_size = 100, 
+                          epochs = 300,
+                          verbose = 1, 
+                          validation_data = (x_test, [y_test,y_test2]), 
+                          callbacks=callbacks)
 
 def main():
   x_train,y_train,y_train2,x_test,y_test,y_test2 = getuberon()
 
-  import keras
-  from keras.models import Sequential
-  from keras.layers import Dense
-  from keras import optimizers
-
   hiddenNodes = 15
-
-  classifier = Sequential()
-
-  classifier.add(Dense(output_dim = hiddenNodes, input_dim = x_train.shape[1],
-    activation = 'tanh', init = 'glorot_uniform'))
-  #classifier.add(Dense(output_dim = noOfClasses, init = 'glorot_uniform',
-  # activation = 'tanh'))
-  classifier.add(Dense(output_dim = y_train.shape[1], init = 'glorot_uniform',
-    activation = 'softmax'))
+  network = StagedNN((x_train.shape[1],
+                      hiddenNodes,
+                      y_train.shape[1],
+                      hiddenNodes,
+                      y_train2.shape[1]))
+  network.build()
 
   # sgd = optimizers.SGD(lr = 0.1, decay = 1e-6, momentum = 0.9, nesterov = True)
-  classifier.compile(optimizer = 'sgd', loss = 'categorical_crossentropy',
-    metrics = ['accuracy'])
+  savecb = keras.callbacks.ModelCheckpoint(filepath='../chkpnts/uberon2-{val_o2_acc:.2f}.hdf5', 
+                                           monitor='val_o2_acc', 
+                                           verbose=1, 
+                                           save_best_only=True)
 
-  savecb = keras.callbacks.ModelCheckpoint(filepath='../chkpnts/uberon2-{val_acc:.2f}.hdf5', monitor='val_acc', verbose=1, save_best_only=True)
+  hist = network.train((x_train,y_train,y_train2),
+                       (x_test,y_test,y_test2),
+                       callbacks=[savecb])
+  # while True:
+  #   session = K.get_session()
+  #   initial_weights = classifier.get_weights()
+  #   new_weights = [keras.initializers.glorot_uniform()(w.shape).eval(session=session) for w in initial_weights]
+  #   classifier.set_weights(new_weights)
 
-  while True:
-    x = classifier.fit(x_train, y_train, batch_size = 100, epochs = 300,
-      verbose = 1, validation_data = (x_test, y_test), callbacks=[savecb])
-    session = keras.backend.get_session()
-    initial_weights = classifier.get_weights()
-    new_weights = [keras.initializers.glorot_uniform()(w.shape).eval(session=session) for w in initial_weights]
-    classifier.set_weights(new_weights)
-
-  loss = classifier.evaluate(x_test, y_test,
-    verbose = 1)
+  loss = network.model.evaluate(x_test, y_test, verbose = 1)
 
   # "Evaluated test samples"
 
   print(loss)
   print(classifier.metrics_names)
 
-  y_pred = classifier.predict(x_test)
+  y_pred = network.model.predict(x_test)
 
   from sklearn import metrics
   matrix = metrics.confusion_matrix(y_test.argmax(axis=1), y_pred.argmax(axis=1))
@@ -257,16 +262,8 @@ def main():
       matrix.append((i, total_no, true_positives / total_no,
         false_positives / total_no, false_negatives / total_no))
 
-  for x in matrix:
-    print(x)
-  '''
-  d_new = {}
-  for i in range(len(d)):
-    d_new[i] = np.argmax(d[i])
-  print(d_new)
-  '''
-
+  for x in matrix: print(x)
 
 if __name__ == '__main__':
-  cacheuberon()
-  # main()
+  # cacheuberon()
+  main()
