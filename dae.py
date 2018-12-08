@@ -64,7 +64,7 @@ def main():
   x_train = sc.fit_transform(X = x_train)
   x_test = sc.transform(X = x_test)
 
-  with open("temp.pk","wb") as f: pk.dump((x_train,x_test),f)
+  # with open("temp.pk","wb") as f: pk.dump((x_train,x_test),f)
   # with open("temp.pk","rb") as f: (x_train,x_test) = pk.load(f)
 
   print(x_train.shape, x_test.shape)
@@ -77,10 +77,11 @@ def main():
   classifier = Sequential()
 
   classifier.add(Dense(output_dim = hiddenNodes, input_dim = noOfFeatures,
+  	
     activation = 'tanh', init = 'glorot_uniform'))
   classifier.add(Dense(output_dim = noOfFeatures, input_dim = hiddenNodes, init = 'glorot_uniform',
     activation = 'tanh'))
-  sgd = keras.optimizers.SGD(lr=0.1, momentum=0.0, decay=0.0, nesterov=False)
+  sgd = keras.optimizers.SGD(lr=100, momentum=0.0, decay=0.0, nesterov=False)
   classifier.compile(optimizer = sgd, loss = keras.losses.mean_squared_error)
 
   save_cb = keras.callbacks.ModelCheckpoint("../chkpnts/daeweights.{epoch:02d}-{val_loss:.2f}.hdf5",

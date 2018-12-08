@@ -141,7 +141,7 @@ def getXandYandDict(filename,uberon=False):
 
 	return x, y.values
 
-x_train, y_train = getXandYandDict('../train_data.h5')
+x_train, y_train = getXandYandDict('train_data.h5')
 print("Normalize training by row")
 #x_train = normalize_rows(x_train)
 print(x_train.sum(axis=1))
@@ -149,7 +149,7 @@ y_train = make_np_array(y_train)
 
 print(x_train, y_train)
 
-x_test, y_test = getXandYandDict('../test_data.h5')
+x_test, y_test = getXandYandDict('test_data.h5')
 print("Normalize test by row")
 #x_test = normalize_rows(x_test)
 print(x_test.sum(axis=1))
