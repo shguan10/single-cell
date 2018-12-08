@@ -177,10 +177,13 @@ class StagedNN:
     self.layershapes = shapes
     self.build()
 
-  def build(self):
+  def build(self,pretrained=False):
     input_shape,h1_shape,o1_shape,h2_shape,o2_shape = self.layershapes
     input_exp = KL.Input(shape=(input_shape,), name="input_expressions")
-    h1 = KL.Dense(h1_shape, activation="tanh", kernel_initializer="glorot_uniform")(input_exp)
+    h1 = KL.Dense(h1_shape, 
+                  name="h1", 
+                  activation="tanh", 
+                  kernel_initializer="glorot_uniform")(input_exp)
     self.o1 = KL.Dense(o1_shape,
                        name="o1",
                        activation = 'softmax',
@@ -195,6 +198,9 @@ class StagedNN:
                        kernel_initializer = 'glorot_uniform')(h2)
 
     self.model = KM.Model(inputs=input_exp,outputs=[self.o1,self.o2], name="staged_nn")
+
+    self.model.load_weights("../chkpnts/labeled_uberon-0.63.hdf5",by_name=True)
+
     self.model.compile(optimizer = 'sgd', loss = 'categorical_crossentropy',
                         metrics = ['accuracy'], loss_weights=[0.5,1.])
   
@@ -204,7 +210,7 @@ class StagedNN:
     return self.model.fit(x_train, 
                           [y_train,y_train2], 
                           batch_size = 100, 
-                          epochs = 300,
+                          epochs = 50,
                           verbose = 1, 
                           validation_data = (x_test, [y_test,y_test2]), 
                           callbacks=callbacks)
@@ -218,7 +224,7 @@ def main():
                       y_train.shape[1],
                       hiddenNodes,
                       y_train2.shape[1]))
-  network.build()
+  network.build(pretrained=True)
 
   # sgd = optimizers.SGD(lr = 0.1, decay = 1e-6, momentum = 0.9, nesterov = True)
   savecb = keras.callbacks.ModelCheckpoint(filepath='../chkpnts/uberon2-{val_o2_acc:.2f}.hdf5', 
@@ -235,14 +241,7 @@ def main():
   #   new_weights = [keras.initializers.glorot_uniform()(w.shape).eval(session=session) for w in initial_weights]
   #   classifier.set_weights(new_weights)
 
-  loss = network.model.evaluate(x_test, y_test, verbose = 1)
-
-  # "Evaluated test samples"
-
-  print(loss)
-  print(classifier.metrics_names)
-
-  y_pred = network.model.predict(x_test)
+  _,y_pred = network.model.predict(x_test)
 
   from sklearn import metrics
   matrix = metrics.confusion_matrix(y_test.argmax(axis=1), y_pred.argmax(axis=1))
@@ -269,6 +268,17 @@ def main():
 
   for x in matrix: print(x)
 
+def labellayers():
+  x_train,y_train,y_train2,x_test,y_test,y_test2 = getuberon()
+  model = KM.Sequential()
+  model.add(KL.Dense(15, name="h1", input_dim = x_train.shape[1],
+    activation = 'tanh', init = 'glorot_uniform'))
+  model.add(KL.Dense(output_dim = y_train.shape[1], name="o1", init = 'glorot_uniform',
+    activation = 'softmax'))
+  model.load_weights("../chkpnts/uberon-0.63.hdf5")
+  model.save_weights("../chkpnts/labeled_uberon-0.63.hdf5")
+
 if __name__ == '__main__':
   # cacheuberon()
   main()
+  # labellayers()
