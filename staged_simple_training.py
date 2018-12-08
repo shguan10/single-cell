@@ -185,10 +185,15 @@ class StagedNN:
                        name="o1",
                        activation = 'softmax',
                        kernel_initializer = 'glorot_uniform')(h1)
+
     h2a = KL.Dense(h2_shape,activation = 'tanh', kernel_initializer = 'glorot_uniform')(self.o1)
     h2b = KL.Dense(h2_shape,activation = 'tanh', kernel_initializer = 'glorot_uniform')(h1)
     h2 = KL.Add()([h2a,h2b])
-    self.o2 = KL.Dense(o2_shape, name="o2", activation = 'softmax',kernel_initializer = 'glorot_uniform')(h2)
+    self.o2 = KL.Dense(o2_shape, 
+                       name="o2", 
+                       activation = 'softmax',
+                       kernel_initializer = 'glorot_uniform')(h2)
+
     self.model = KM.Model(inputs=input_exp,outputs=[self.o1,self.o2], name="staged_nn")
     self.model.compile(optimizer = 'sgd', loss = 'categorical_crossentropy',
                         metrics = ['accuracy'], loss_weights=[0.5,1.])
