@@ -112,10 +112,7 @@ def get_cell_superclass(s):
     arr[index] = 1
     return arr
 
-def make_np_array(y):
-  return np.array(list(y))
-
-def getXandYandDict(filename,uberon=False):
+def getXandY(filename,uberon=False,orig_labels=True,labeldict=None):
   # get x and y
   store = pd.HDFStore(filename)
   feat_mat_df = store['rpkm']
@@ -125,50 +122,38 @@ def getXandYandDict(filename,uberon=False):
   fl = pd.concat([feat_mat_df, pd.DataFrame(labels.rename('labels'))],
     axis = 1)
 
-  print(fl['labels'])
   fl = fl[uberon == fl.labels.str.contains("UBERON")]
 
   x_df = fl.drop(labels = 'labels', axis=1)
-  print(x_df)
   x = x_df.values
 
-  y_series = fl['labels']
-  print(y_series)
-  y = y_series.apply(get_cell_superclass)#.values?
-  print(y.value_counts())
+  y = fl['labels']
+  if orig_labels: 
+    if labeldict==None: 
+      mapping=pd.get_dummies(y)
+      labeldict={}
+      for lab,vec in zip(y,mapping.values): labeldict[lab] = vec
+      y=mapping
+    else: y= y.map(labeldict)
+  else: y = y.map(get_cell_superclass)
+  return x, y.values,labeldict
 
-  print("Got x and y")
+def cacheuberon(orig_labels=True):
+  x_train, y_train,labeldict = getXandY('../data_rpkm/train_data.h5',uberon=True,orig_labels=orig_labels)
+  y_train = np.array(list(y_train))
 
-  return x, y.values
+  x_test, y_test, labeldict = getXandY('../data_rpkm/test_data.h5',uberon=True,orig_labels=orig_labels,labeldict=labeldict)
+  y_test = np.array(list(y_test))
 
-def cacheuberon():
-  x_train, y_train = getXandYandDict('../data_rpkm/train_data.h5',uberon=True)
-  print("Normalize training by row")
-  #x_train = normalize_rows(x_train)
-  print(x_train.sum(axis=1))
-  y_train = make_np_array(y_train)
-
-  print(x_train, y_train)
-
-  x_test, y_test = getXandYandDict('../data_rpkm/test_data.h5',uberon=True)
-  print("Normalize test by row")
-  #x_test = normalize_rows(x_test)
-  print(x_test.sum(axis=1))
-  y_test = make_np_array(y_test)
-
-  print(x_test, y_test)
-
+  df = pd.DataFrame(data=labeldict)
+  df.to_hdf("uberon.h5","labeldict")
+  
   # COPY PASTED FROM SIMPLE_TRAINING.PY
 
   noOfTrainingSamples, noOfFeatures = x_train.shape
   assert(noOfFeatures == x_test.shape[1])
   noOfClasses = y_train.shape[1]
   assert(noOfClasses == y_test.shape[1])
-
-  '''
-  from dim_red_models import *
-  x_train, x_test = myReducedDimMain()
-  '''
 
   from sklearn.preprocessing import StandardScaler
   sc = StandardScaler()
@@ -182,28 +167,32 @@ def cacheuberon():
   print(type(x_test))
 
   print("Normalized features")
-  import pdb
-  pdb.set_trace()
-  df = pd.DataFrame(data=x_train)
-  df.to_hdf("uberon.h5","x_train")
+  
+  if not orig_labels:
+    df = pd.DataFrame(data=x_train)
+    df.to_hdf("uberon.h5","x_train")
   df = pd.DataFrame(data=y_train)
-  df.to_hdf("uberon.h5","y_train")
+  df.to_hdf("uberon.h5","y_train2" if orig_labels else "y_train")
 
-  df = pd.DataFrame(data=x_test)
-  df.to_hdf("uberon.h5","x_test")
+  if not orig_labels:
+    df = pd.DataFrame(data=x_test)
+    df.to_hdf("uberon.h5","x_test")
   df = pd.DataFrame(data=y_test)
-  df.to_hdf("uberon.h5","y_test")
+  df.to_hdf("uberon.h5","y_test2" if orig_labels else "y_test")
+  
 
 def getuberon():
   store = pd.HDFStore("uberon.h5")
   x_train = store["x_train"].values
   y_train = store["y_train"].values
+  y_train2 = store["y_train2"].values
   x_test = store["x_test"].values
   y_test = store["y_test"].values
+  y_test2 = store["y_test2"].values
   return x_train,y_train,x_test,y_test
 
 def main():
-  x_train,y_train,x_test,y_test = getuberon()
+  x_train,y_train,y_train2,x_test,y_test,y_test2 = getuberon()
 
   import keras
   from keras.models import Sequential
@@ -225,15 +214,15 @@ def main():
   classifier.compile(optimizer = 'sgd', loss = 'categorical_crossentropy',
     metrics = ['accuracy'])
 
-  savecb = keras.callbacks.ModelCheckpoint(filepath='../chkpnts/uberon-{val_acc:.2f}.hdf5', monitor='val_acc', verbose=1, save_best_only=True)
+  savecb = keras.callbacks.ModelCheckpoint(filepath='../chkpnts/uberon2-{val_acc:.2f}.hdf5', monitor='val_acc', verbose=1, save_best_only=True)
 
-  x = classifier.fit(x_train, y_train, batch_size = 100, epochs = 100,
-    verbose = 1, validation_data = (x_test, y_test), callbacks=[savecb])
-  # while True:
-  #   session = keras.get_session()
-  #   initial_weights = classifier.get_weights()
-  #   new_weights = [keras.initializers.glorot_uniform()(w.shape).eval(session=session) for w in initial_weights]
-  #   classifier.set_weights(new_weights)
+  while True:
+    x = classifier.fit(x_train, y_train, batch_size = 100, epochs = 300,
+      verbose = 1, validation_data = (x_test, y_test), callbacks=[savecb])
+    session = keras.backend.get_session()
+    initial_weights = classifier.get_weights()
+    new_weights = [keras.initializers.glorot_uniform()(w.shape).eval(session=session) for w in initial_weights]
+    classifier.set_weights(new_weights)
 
   loss = classifier.evaluate(x_test, y_test,
     verbose = 1)
@@ -279,5 +268,5 @@ def main():
 
 
 if __name__ == '__main__':
-  # cacheuberon()
-  main()
+  cacheuberon()
+  # main()
