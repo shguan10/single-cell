@@ -2,10 +2,10 @@ from staged_simple_training import *
 from stage_2_training import *
 
 def main():
-	with open('stage_1_models.pickle', 'rb') as f:
+	with open(stage_1_filename, 'rb') as f:
 		stage_1_classifier, stage_1_sc = pickle.load(f)
 	#main_stage_1()
-	with open('stage_2_models.pickle', 'rb') as f:
+	with open(stage_2_filename, 'rb') as f:
 		stage_2_classifiers, stage_2_scs, all_keys = pickle.load(f)
 	#main_stage_2()
 

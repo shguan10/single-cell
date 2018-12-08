@@ -17,8 +17,8 @@ from staged_simple_training import *
 
 def get_keys(i):
 	keys = []
-	for x in cl_superclass_dict:
-		if cl_superclass_dict[x] == i:
+	for x in superclass_dict:
+		if superclass_dict[x] == i:
 			keys.append(x)
 	return keys
 
@@ -33,7 +33,7 @@ def init_dfs(filename):
 	dfs_y = []
 	all_keys = []
 
-	for i in range(len(cl_cell_superclasses)):
+	for i in range(len(cell_superclasses)):
 		
 		keys = get_keys(i)
 
@@ -100,7 +100,7 @@ def main_stage_2():
 	print("About to train nns")
 	nns, scalers = train_nns_scalers(dfs_x, dfs_y, all_keys)
 
-	with open('stage_2_models.pickle', 'wb') as f:
+	with open(stage_2_filename, 'wb') as f:
 		pickle.dump((nns, scalers, all_keys), f)
 
 	return nns, scalers, all_keys
