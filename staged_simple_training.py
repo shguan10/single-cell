@@ -72,6 +72,16 @@ cl_cell_superclasses = ['connective tissue', 'other', 'endocrine',
 import pandas as pd
 import numpy as np
 
+from sklearn.preprocessing import StandardScaler
+from sklearn import metrics
+
+import keras
+from keras.models import Sequential
+from keras.layers import Dense
+from keras import optimizers
+
+import pickle
+
 def get_cell_superclass(s):
 	if s in cl_superclass_dict:
 		index = cl_superclass_dict[s]
@@ -90,6 +100,15 @@ def make_np_array(y):
 	return L
 
 def getXandYandDict(filename):
+	x, y_series = getXandYandDictNoSuperclass(filename)
+	y = y_series.apply(lambda s: get_cell_superclass(s))#.values?
+	print(y.value_counts())
+
+	print("Got x and y")
+
+	return x, y.values
+
+def getXandYandDictNoSuperclass(filename):
 	# get x and y
 	store = pd.HDFStore(filename)
 	feat_mat_df = store['rpkm']
@@ -109,117 +128,119 @@ def getXandYandDict(filename):
 
 	y_series = fl['labels']
 	print(y_series)
-	y = y_series.apply(lambda s: get_cell_superclass(s))#.values?
-	print(y.value_counts())
 
-	print("Got x and y")
-
-	return x, y.values
-
-x_train, y_train = getXandYandDict('../ml_10701_ps5_data/train_data.h5')
-print("Normalize training by row")
-#x_train = normalize_rows(x_train)
-print(x_train.sum(axis=1))
-y_train = make_np_array(y_train)
-
-print(x_train, y_train)
-
-x_test, y_test = getXandYandDict('../ml_10701_ps5_data/test_data.h5')
-print("Normalize test by row")
-#x_test = normalize_rows(x_test)
-print(x_test.sum(axis=1))
-y_test = make_np_array(y_test)
-
-print(x_test, y_test)
+	return x, y_series
 
 
+def pprint_errors(y_pred, y_test):
+	matrix = []
+	y_pred = np.argmax(y_pred, axis = 1)
+	y_test = np.argmax(y_test, axis = 1)
+	for i in set(y_pred):
+		false_positives, false_negatives = 0, 0
+		true_positives = 0
+		for j in range(len(y_test)):
+			if (y_pred[j] == i) and (y_test[j] == i):
+				true_positives += 1
+			elif (y_pred[j] == i) and not (y_test[j] == i):
+				false_positives += 1
+			elif (not (y_pred[j] == i)) and (y_test[j] == i):
+				false_negatives += 1
+		total_no = true_positives + false_negatives
+		if total_no != 0:
+			matrix.append((i, total_no, true_positives / total_no,
+				false_positives / total_no, false_negatives / total_no))
 
-# COPY PASTED FROM SIMPLE_TRAINING.PY
+	for x in matrix:
+		print(x)
 
-noOfTrainingSamples, noOfFeatures = x_train.shape
-assert(noOfFeatures == x_test.shape[1])
-noOfClasses = y_train.shape[1]
-assert(noOfClasses == y_test.shape[1])
+def main_stage_1():
+	x_train, y_train = getXandYandDict('../ml_10701_ps5_data/train_data.h5')
+	print("Normalize training by row")
+	#x_train = normalize_rows(x_train)
+	print(x_train.sum(axis=1))
+	y_train = make_np_array(y_train)
 
-'''
-from dim_red_models import *
-x_train, x_test = myReducedDimMain()
-'''
+	print(x_train, y_train)
 
-from sklearn.preprocessing import StandardScaler
-sc = StandardScaler()
-x_train = sc.fit_transform(X = x_train)
-x_test = sc.transform(X = x_test)
+	x_test, y_test = getXandYandDict('../ml_10701_ps5_data/test_data.h5')
+	print("Normalize test by row")
+	#x_test = normalize_rows(x_test)
+	print(x_test.sum(axis=1))
+	y_test = make_np_array(y_test)
 
-print(x_train.shape, x_test.shape)
+	print(x_test, y_test)
 
-print(x_train, x_test)
-print(type(x_train))
-print(type(x_test))
-#ssert(0)
-print("Normalized features")
 
-import keras
-from keras.models import Sequential
-from keras.layers import Dense
-from keras import optimizers
 
-hiddenNodes = 15
+	# COPY PASTED FROM SIMPLE_TRAINING.PY
 
-classifier = Sequential()
+	noOfTrainingSamples, noOfFeatures = x_train.shape
+	assert(noOfFeatures == x_test.shape[1])
+	noOfClasses = y_train.shape[1]
+	assert(noOfClasses == y_test.shape[1])
 
-classifier.add(Dense(output_dim = hiddenNodes, input_dim = noOfFeatures,
-	activation = 'tanh', init = 'glorot_uniform'))
-#classifier.add(Dense(output_dim = noOfClasses, init = 'glorot_uniform',
-#	activation = 'tanh'))
-classifier.add(Dense(output_dim = noOfClasses, init = 'glorot_uniform',
-	activation = 'softmax'))
+	'''
+	from dim_red_models import *
+	x_train, x_test = myReducedDimMain()
+	'''
 
-# sgd = optimizers.SGD(lr = 0.1, decay = 1e-6, momentum = 0.9, nesterov = True)
-classifier.compile(optimizer = 'sgd', loss = 'categorical_crossentropy',
-	metrics = ['accuracy'])
 
-x = classifier.fit(x_train, y_train, batch_size = 10, epochs = 5,
-	verbose = 1 )
-#	validation_data = (x_test, y_test))
+	sc = StandardScaler()
+	x_train = sc.fit_transform(X = x_train)
+	x_test = sc.transform(X = x_test)
 
-"Fit training samples to classifier"
+	print(x_train.shape, x_test.shape)
 
-loss = classifier.evaluate(x_test, y_test,
-	verbose = 1)
+	print(x_train, x_test)
+	print(type(x_train))
+	print(type(x_test))
+	#ssert(0)
+	print("Normalized features")
 
-"Evaluated test samples"
 
-print(loss)
-print(classifier.metrics_names)
 
-y_pred = classifier.predict(x_test)
+	hiddenNodes = 15
 
-from sklearn import metrics
-matrix = metrics.confusion_matrix(y_test.argmax(axis=1), y_pred.argmax(axis=1))
-np.set_printoptions(threshold = np.nan)
-print(matrix)
+	classifier = Sequential()
 
-matrix = []
-y_pred = np.argmax(y_pred, axis = 1)
-y_test = np.argmax(y_test, axis = 1)
-for i in set(y_pred):
-	false_positives, false_negatives = 0, 0
-	true_positives = 0
-	for j in range(len(y_test)):
-		if (y_pred[j] == i) and (y_test[j] == i):
-			true_positives += 1
-		elif (y_pred[j] == i) and not (y_test[j] == i):
-			false_positives += 1
-		elif (not (y_pred[j] == i)) and (y_test[j] == i):
-			false_negatives += 1
-	total_no = true_positives + false_negatives
-	if total_no != 0:
-		matrix.append((i, total_no, true_positives / total_no,
-			false_positives / total_no, false_negatives / total_no))
+	classifier.add(Dense(output_dim = hiddenNodes, input_dim = noOfFeatures,
+		activation = 'tanh', init = 'glorot_uniform'))
+	#classifier.add(Dense(output_dim = noOfClasses, init = 'glorot_uniform',
+	#	activation = 'tanh'))
+	classifier.add(Dense(output_dim = noOfClasses, init = 'glorot_uniform',
+		activation = 'softmax'))
 
-for x in matrix:
-	print(x)
+	# sgd = optimizers.SGD(lr = 0.1, decay = 1e-6, momentum = 0.9, nesterov = True)
+	classifier.compile(optimizer = 'sgd', loss = 'categorical_crossentropy',
+		metrics = ['accuracy'])
+
+	x = classifier.fit(x_train, y_train, batch_size = 10, epochs = 5,
+		verbose = 1 )
+	#	validation_data = (x_test, y_test))
+
+	"Fit training samples to classifier"
+
+	loss = classifier.evaluate(x_test, y_test,
+		verbose = 1)
+
+	"Evaluated test samples"
+
+	print(loss)
+	print(classifier.metrics_names)
+
+	y_pred = classifier.predict(x_test)
+
+	matrix = metrics.confusion_matrix(y_test.argmax(axis=1), y_pred.argmax(axis=1))
+	np.set_printoptions(threshold = np.nan)
+	print(matrix)
+
+	pprint_errors(y_pred, y_test)
+
+	with open('stage_1_models.pickle', 'wb') as f:
+		pickle.dump((classifier, sc), f)
+
+	return classifier, sc
 '''
 d_new = {}
 for i in range(len(d)):
@@ -227,5 +248,6 @@ for i in range(len(d)):
 print(d_new)
 '''
 
-
+if __name__ == '__main__':
+	main_stage_1()
 
