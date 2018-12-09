@@ -159,7 +159,7 @@ def main_stage_1():
 
 
 
-	hiddenNodes = 15
+	hiddenNodes = 100
 
 	classifier = Sequential()
 

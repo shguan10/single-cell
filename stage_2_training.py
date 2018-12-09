@@ -63,7 +63,7 @@ def train_one_nn_scaler(df_x, df_y, keys):
 	x_train = scaler.fit_transform(X = x_train)
 
 	# create network
-	hidden_nodes = 7
+	hidden_nodes = 15
 	nn = Sequential()
 	nn.add(Dense(output_dim = hidden_nodes, input_dim = noOfFeatures,
 		activation = 'tanh', init = 'glorot_uniform'))
