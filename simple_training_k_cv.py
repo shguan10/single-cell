@@ -62,6 +62,7 @@ def main():
 		print(x_tra.shape, y_tra.shape, x_val.shape, y_val.shape)
 		new_loss = test_model(x_tra, y_tra, x_val, y_val)
 		results.append(new_loss)
+		print("Done with i = %dth iteration"%i)
 
 	print(results)
 

@@ -140,7 +140,7 @@ def split_XY(fl):
 	return x, y
 
 def main_stage_1():
-	with open('leave_k=5_out_studies', 'rb') as f:
+	with open('leave_k=10_out_studies', 'rb') as f:
 		studies = pickle.load(f)
 
 	results = []
@@ -155,7 +155,7 @@ def main_stage_1():
 
 	print(results)
 
-	with open('stage_1_k=5_out_results', 'wb') as f:
+	with open('stage_1_k=10_out_results', 'wb') as f:
 		pickle.dump(results, f)
 
 
@@ -172,7 +172,6 @@ def validate(x_train, y_train, x_test, y_test):
 	x_train, x_test = myReducedDimMain()
 	'''
 
-
 	sc = StandardScaler()
 	x_train = sc.fit_transform(X = x_train)
 	x_test = sc.transform(X = x_test)
@@ -184,8 +183,6 @@ def validate(x_train, y_train, x_test, y_test):
 	print(type(x_test))
 	#ssert(0)
 	print("Normalized features")
-
-
 
 	hiddenNodes = 100
 
