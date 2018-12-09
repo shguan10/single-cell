@@ -48,4 +48,8 @@ print(new_train)
 print(new_test)
 assert(len(train) + len(test) == len(new_train) + len(new_test))
 
+import pickle
+with open('leave_k=%d_out_studies'%K, 'wb') as f:
+	pickle.dump(studies, f)
+
 
