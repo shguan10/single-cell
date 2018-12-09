@@ -5,6 +5,11 @@ import keras.layers as KL
 import keras.engine as KE
 from keras import optimizers
 
+import pandas as pd
+import numpy as np
+
+import random
+
 cl_superclass_dict = {
 
   'CL:0000057 fibroblast': 0,
@@ -72,8 +77,30 @@ uberon_classes = {
   "UBERON:0001851 cortex":6
 }
 
-import pandas as pd
-import numpy as np
+HP = {
+  "h1_shape" : 15,
+  "h2_shape" : 200,
+  "batch_size": 100,
+  "loss_weights":[0,1.],
+  "epochs":50,
+  "pretrained":True
+}
+
+HPSpace = {
+  "h1_shape" : [15],
+  "h2_shape" : [15,30,50,100,700],
+  "batch_size": [10,50,100],
+  "loss_weights":[0,.1,.2,.5],
+  "pretrained":[True,False]
+}
+
+def hp2str():
+  return "h1_"+str(HP["h1_shape"])+\
+         "__h2_"+str(HP["h2_shape"])+\
+         "__bsize_"+str(HP["batch_size"])+\
+         "__lcoeffs_"+str(HP["loss_weights"])+"_"+str(1.)+\
+         "__epochs_"+str(HP["epochs"])+\
+         "__ptrain_"+str(HP["pretrained"])+"_"
 
 def get_cell_superclass(s):
   if s in cl_superclass_dict:
@@ -113,22 +140,47 @@ def getXandY(filename,uberon=False,orig_labels=True,labeldict=None):
   else: y = y.map(get_cell_superclass)
   return x, y.values,labeldict
 
-def cacheuberon(orig_labels=True):
-  x_train, y_train,labeldict = getXandY('../data_rpkm/train_data.h5',uberon=True,orig_labels=orig_labels)
-  y_train = np.array(list(y_train))
+def cacheover(allf="oversampled.h5",uberon=False):
+  store = pd.HDFStore(allf)
+  x_train = store["x_train"]
+  y_train = store["y_train"]
+  x_test = store["x_test"]
+  y_test = store["y_test"]
 
-  x_test, y_test, labeldict = getXandY('../data_rpkm/test_data.h5',uberon=True,orig_labels=orig_labels,labeldict=labeldict)
-  y_test = np.array(list(y_test))
+  store.close()
 
-  df = pd.DataFrame(data=labeldict)
-  df.to_hdf("uberon.h5","labeldict")
+  def process(xtraindf,ytraindf,uberon=True,orig_labels=True,labeldict=None):
+    fl = pd.concat([xtraindf, pd.DataFrame(ytraindf.rename('labels'))],
+                    axis = 1)
+
+    fl = fl[uberon == fl.labels.str.contains("UBERON")]
+
+    x_df = fl.drop(labels = 'labels', axis=1)
+    x = x_df.values
+
+    y = fl['labels']
+    if orig_labels: 
+      if labeldict==None: 
+        mapping=pd.get_dummies(y)
+        labeldict={}
+        for lab,vec in zip(y,mapping.values): labeldict[lab] = vec
+        y=mapping
+      else: y= y.map(labeldict)
+    else: y = y.map(get_cell_superclass)
+    return x, y.values,labeldict
   
-  # COPY PASTED FROM SIMPLE_TRAINING.PY
+  fname = "overub.h5" if uberon else "overcl.h5"
+  xtrain,ytrain,labeldict = process(x_train,y_train,uberon=uberon,orig_labels=False)
 
-  noOfTrainingSamples, noOfFeatures = x_train.shape
-  assert(noOfFeatures == x_test.shape[1])
-  noOfClasses = y_train.shape[1]
-  assert(noOfClasses == y_test.shape[1])
+  xtrain2,ytrain2,labeldict = process(x_train,y_train,uberon=uberon,orig_labels=True,labeldict=labeldict)
+
+  xtest,ytest,labeldict = process(x_test,y_test,labeldict=labeldict,uberon=uberon,orig_labels=False)
+  
+  xtest2,ytest2,labeldict = process(x_test,y_test,uberon=uberon,orig_labels=True,labeldict=labeldict)  
+  
+  df = pd.DataFrame(data=labeldict)
+  df.to_hdf(fname,"labeldict")
+
 
   from sklearn.preprocessing import StandardScaler
   sc = StandardScaler()
@@ -145,25 +197,65 @@ def cacheuberon(orig_labels=True):
   
   if not orig_labels:
     df = pd.DataFrame(data=x_train)
-    df.to_hdf("uberon.h5","x_train")
+    df.to_hdf(fname,"x_train")
   df = pd.DataFrame(data=y_train)
-  df.to_hdf("uberon.h5","y_train2" if orig_labels else "y_train")
+  df.to_hdf(fname,"y_train2" if orig_labels else "y_train")
 
   if not orig_labels:
     df = pd.DataFrame(data=x_test)
-    df.to_hdf("uberon.h5","x_test")
+    df.to_hdf(fname,"x_test")
   df = pd.DataFrame(data=y_test)
-  df.to_hdf("uberon.h5","y_test2" if orig_labels else "y_test")
-  
+  df.to_hdf(fname,"y_test2" if orig_labels else "y_test")
 
-def getuberon():
-  store = pd.HDFStore("uberon.h5")
+def cachedata(orig_labels=True,uberon=True,trainf='../data_rpkm/train_data.h5',testf='../data_rpkm/test_data.h5'):
+  fname = "uberon.h5" if uberon else "cl.h5"
+  x_train, y_train,labeldict = getXandY(trainf,uberon=uberon,orig_labels=orig_labels)
+  y_train = np.array(list(y_train))
+
+  x_test, y_test, labeldict = getXandY(testf,uberon=uberon,orig_labels=orig_labels,labeldict=labeldict)
+  y_test = np.array(list(y_test))
+
+  df = pd.DataFrame(data=labeldict)
+  df.to_hdf(fname,"labeldict")
+  
+  noOfTrainingSamples, noOfFeatures = x_train.shape
+  noOfClasses = y_train.shape[1]
+
+  from sklearn.preprocessing import StandardScaler
+  sc = StandardScaler()
+  x_train = sc.fit_transform(X = x_train)
+  x_test = sc.transform(X = x_test)
+
+  print(x_train.shape, x_test.shape)
+
+  print(x_train, x_test)
+  print(type(x_train))
+  print(type(x_test))
+
+  print("Normalized features")
+  
+  if not orig_labels:
+    df = pd.DataFrame(data=x_train)
+    df.to_hdf(fname,"x_train")
+  df = pd.DataFrame(data=y_train)
+  df.to_hdf(fname,"y_train2" if orig_labels else "y_train")
+
+  if not orig_labels:
+    df = pd.DataFrame(data=x_test)
+    df.to_hdf(fname,"x_test")
+  df = pd.DataFrame(data=y_test)
+  df.to_hdf(fname,"y_test2" if orig_labels else "y_test")
+  
+def getdata(uberon=True):
+  fname = "uberon.h5" if uberon else "cl.h5"
+  store = pd.HDFStore(fname)
   x_train = store["x_train"].values
   y_train = store["y_train"].values
   y_train2 = store["y_train2"].values
   x_test = store["x_test"].values
   y_test = store["y_test"].values
   y_test2 = store["y_test2"].values
+  store.close()
   return x_train,y_train,y_train2,x_test,y_test,y_test2
 
 class StagedNN:
@@ -175,7 +267,6 @@ class StagedNN:
     shapes = (input_shape,h1_shape,o1_shape,h2_shape,o2_shape)
     """
     self.layershapes = shapes
-    self.build()
 
   def build(self,pretrained=False):
     input_shape,h1_shape,o1_shape,h2_shape,o2_shape = self.layershapes
@@ -196,38 +287,75 @@ class StagedNN:
                        name="o2", 
                        activation = 'softmax',
                        kernel_initializer = 'glorot_uniform')(h2)
-
+    self.stage = KM.Model(inputs=input_exp,outputs=self.o1, name="staged_nn_stage")
     self.model = KM.Model(inputs=input_exp,outputs=[self.o1,self.o2], name="staged_nn")
 
-    self.model.load_weights("../chkpnts/labeled_uberon-0.63.hdf5",by_name=True)
+    if pretrained: self.model.load_weights("../chkpnts/labeled_uberon-0.63.hdf5",by_name=True)
+    # self.model.load_weights("../chkpnts/uberon2-0.48.hdf5",by_name=True)
+
+    self.stage.compile(optimizer = 'sgd', loss = 'categorical_crossentropy',
+                        metrics = ['accuracy'])
 
     self.model.compile(optimizer = 'sgd', loss = 'categorical_crossentropy',
-                        metrics = ['accuracy'], loss_weights=[0.5,1.])
-  
+                        metrics = ['accuracy'], loss_weights=[HP["loss_weights"],1.])
+  def trainstage(self,train_vectors,test_vectors,callbacks=[]):
+    x_train,y_train = train_vectors
+    x_test,y_test = test_vectors
+    return self.model.fit(x_train, 
+                          y_train, 
+                          batch_size = HP["batch_size"], 
+                          epochs = HP["epochs"],
+                          verbose = 1, 
+                          validation_data = (x_test, y_test), 
+                          callbacks=callbacks)
+
   def train(self,train_vectors,test_vectors,callbacks=[]):
     x_train,y_train,y_train2 = train_vectors
     x_test,y_test,y_test2 = test_vectors
     return self.model.fit(x_train, 
                           [y_train,y_train2], 
-                          batch_size = 100, 
-                          epochs = 50,
+                          batch_size = HP["batch_size"], 
+                          epochs = HP["epochs"],
                           verbose = 1, 
                           validation_data = (x_test, [y_test,y_test2]), 
                           callbacks=callbacks)
 
-def main():
-  x_train,y_train,y_train2,x_test,y_test,y_test2 = getuberon()
-
-  hiddenNodes = 15
+def pretrain():
+  x_train,y_train,y_train2,x_test,y_test,y_test2 = getdata()
   network = StagedNN((x_train.shape[1],
-                      hiddenNodes,
+                      HP["h1_shape"],
                       y_train.shape[1],
-                      hiddenNodes,
+                      HP["h2_shape"],
                       y_train2.shape[1]))
-  network.build(pretrained=True)
+  network.build(pretrained=False)
+  savecb = keras.callbacks.ModelCheckpoint(filepath='../chkpnts/uberon-'+hp2str()+'-vacc{val_acc:.3f}.hdf5', 
+                                           monitor='val_acc', 
+                                           verbose=1, 
+                                           save_best_only=True)
+
+  hist = network.trainstage((x_train,y_train),
+                             (x_test,y_test),
+                             callbacks=[savecb])
+
+  savehist(hist,hp2str()+"hash_"+str(random.random())[2:]+"_")
+
+def savehist(hist,name):
+  df = pd.DataFrame(data=hist.history)
+  df.to_hdf("../chkpnts/histories.h5",name)
+
+
+def main():
+  x_train,y_train,y_train2,x_test,y_test,y_test2 = getdata()
+
+  network = StagedNN((x_train.shape[1],
+                      HP["h1_shape"],
+                      y_train.shape[1],
+                      HP["h2_shape"],
+                      y_train2.shape[1]))
+  network.build(pretrained=HP["pretrained"])
 
   # sgd = optimizers.SGD(lr = 0.1, decay = 1e-6, momentum = 0.9, nesterov = True)
-  savecb = keras.callbacks.ModelCheckpoint(filepath='../chkpnts/uberon2-{val_o2_acc:.2f}.hdf5', 
+  savecb = keras.callbacks.ModelCheckpoint(filepath='../chkpnts/uberon2-'+hp2str()+'-vo2acc{val_o2_acc:.3f}.hdf5', 
                                            monitor='val_o2_acc', 
                                            verbose=1, 
                                            save_best_only=True)
@@ -235,6 +363,8 @@ def main():
   hist = network.train((x_train,y_train,y_train2),
                        (x_test,y_test,y_test2),
                        callbacks=[savecb])
+
+  savehist(hist,hp2str()+"hash_"+str(random.random())[2:]+"_")
   # while True:
   #   session = K.get_session()
   #   initial_weights = classifier.get_weights()
@@ -244,13 +374,13 @@ def main():
   _,y_pred = network.model.predict(x_test)
 
   from sklearn import metrics
-  matrix = metrics.confusion_matrix(y_test.argmax(axis=1), y_pred.argmax(axis=1))
+  matrix = metrics.confusion_matrix(y_test2.argmax(axis=1), y_pred.argmax(axis=1))
   np.set_printoptions(threshold = np.nan)
   print(matrix)
 
   matrix = []
   y_pred = np.argmax(y_pred, axis = 1)
-  y_test = np.argmax(y_test, axis = 1)
+  y_test = np.argmax(y_test2, axis = 1)
   for i in set(y_pred):
     false_positives, false_negatives = 0, 0
     true_positives = 0
@@ -280,5 +410,9 @@ def labellayers():
 
 if __name__ == '__main__':
   # cacheuberon()
-  main()
+  while True:
+    for e in HPSpace: 
+      choices = HPSpace[e]
+      HP[e] = random.choice(choices)
+    for _ in range(5): main()      
   # labellayers()
