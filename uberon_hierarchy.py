@@ -5,11 +5,13 @@ superclass_dict = {
 
   "UBERON:0000955 brain":1,
   "UBERON:0002038 substantia nigra":1,
-  "UBERON:0001954 Ammon's horn":1,
   "UBERON:0001891 midbrain":1,
-  "UBERON:0002435 striatum":1,
-  "UBERON:0001898 hypothalamus":1,
-  "UBERON:0010743 meningeal cluster":1,
+
+  "UBERON:0001954 Ammon's horn":7,
+  "UBERON:0001898 hypothalamus":7,
+
+  "UBERON:0002435 striatum":8,
+  "UBERON:0010743 meningeal cluster":8,
 
   "UBERON:0001003 skin epidermis":2,
   "UBERON:0001997 olfactory epithelium":2,
@@ -31,8 +33,8 @@ superclass_dict = {
   "UBERON:0001851 cortex":6
 }
 
-cell_superclasses = ['lung', 'brain', 'epithelium',
-    'reproduction', 'endocrine', 'bone', 'other']
+cell_superclasses = ['lung', 'brain-main', 'brain-2', 'brain-3',
+'epithelium', 'reproduction', 'endocrine', 'bone', 'other']
 
 bad_phrase = "CL:"
 

@@ -90,7 +90,6 @@ def getXandYandDictNoSuperclass(filename):
 
 	return x, y_series
 
-
 def pprint_errors(y_pred, y_test):
 	matrix = []
 	y_pred = np.argmax(y_pred, axis = 1)
@@ -114,7 +113,8 @@ def pprint_errors(y_pred, y_test):
 		print(x)
 
 def main_stage_1():
-	x_train, y_train = getXandYandDict('../ml_10701_ps5_data/train_data.h5')
+	x_train, y_train = getXandYandDict(
+		'../oversampled_train_data.h5')#'../ml_10701_ps5_data/train_data.h5')
 	print("Normalize training by row")
 	#x_train = normalize_rows(x_train)
 	print(x_train.sum(axis=1))
@@ -159,7 +159,7 @@ def main_stage_1():
 
 
 
-	hiddenNodes = 15
+	hiddenNodes = 100
 
 	classifier = Sequential()
 

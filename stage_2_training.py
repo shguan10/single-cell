@@ -63,7 +63,7 @@ def train_one_nn_scaler(df_x, df_y, keys):
 	x_train = scaler.fit_transform(X = x_train)
 
 	# create network
-	hidden_nodes = 5
+	hidden_nodes = 15
 	nn = Sequential()
 	nn.add(Dense(output_dim = hidden_nodes, input_dim = noOfFeatures,
 		activation = 'tanh', init = 'glorot_uniform'))
@@ -96,7 +96,8 @@ def train_nns_scalers(dfs_x, dfs_y, all_keys):
 
 def main_stage_2():
 	print("About to initialize dataframes")
-	dfs_x, dfs_y, all_keys = init_dfs('../ml_10701_ps5_data/train_data.h5')
+	dfs_x, dfs_y, all_keys = init_dfs(
+		'../oversampled_train_data.h5')#'../ml_10701_ps5_data/train_data.h5')
 	print("About to train nns")
 	nns, scalers = train_nns_scalers(dfs_x, dfs_y, all_keys)
 

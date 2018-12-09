@@ -41,7 +41,8 @@ def getXandYwithDict(filename, d):
 	assert(x.shape[0] == y.shape[0])
 	return x, y
 
-x_train, y_train, d = getXandYandDict('../ml_10701_ps5_data/train_data.h5')
+x_train, y_train, d = getXandYandDict(#
+	'../oversampled_train_data.h5')#'../ml_10701_ps5_data/train_data.h5')
 print("Normalize training by row")
 #x_train = normalize_rows(x_train)
 print(x_train.sum(axis=1))
