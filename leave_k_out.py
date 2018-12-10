@@ -4,8 +4,6 @@ import numpy as np
 
 K = 10
 
-# TAKING OUT UBERON
-
 def get_joint_df(filename):
 	store = pd.HDFStore(filename)
 	feat_mat_df = store['rpkm']
