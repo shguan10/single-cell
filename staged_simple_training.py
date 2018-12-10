@@ -26,7 +26,7 @@ all cell_types:
  'CL:0000192 smooth muscle cell'
  '''
 
-from uberon_hierarchy import *
+from cl_hierarchy import *
 
 import pandas as pd
 import numpy as np
@@ -73,7 +73,7 @@ def getXandYandDictNoSuperclass(filename):
 	feat_mat_df = store['rpkm']
 	#x = feat_mat_df.values
 	labels = store['labels']
-
+	store.close()
 	fl = pd.concat([feat_mat_df, pd.DataFrame(labels.rename('labels'))],
 		axis = 1)
 

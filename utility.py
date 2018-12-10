@@ -25,7 +25,7 @@ def up_sample(x_df, y_series):
 		print(label)
 		# I tried with 500 and 1000, changed to 1500 now, need to run it
 		# on a good computer
-		amount_needed = 1500
+		amount_needed = 500
 		correct_label_df = fl[fl.labels == label]
 		to_replace = y_values[label] < amount_needed
 		extra = correct_label_df.sample(amount_needed, replace = to_replace)
@@ -43,13 +43,14 @@ def up_sample(x_df, y_series):
 
 store = pd.HDFStore('../ml_10701_ps5_data/train_data.h5')
 feat_mat_df = store['rpkm']; labels = store['labels']
+store.close()
 new_x, new_y = up_sample(feat_mat_df, labels)
 print(new_y.value_counts())
 print(new_x.values.shape)
 print(new_y.values.shape)
 
-new_x.to_hdf('../oversampled_train_data.h5', key = 'rpkm', mode = 'w')
-new_y.to_hdf('../oversampled_train_data.h5', key = 'labels')
+new_x.to_hdf('../oversampled_train_data_500.h5', key = 'rpkm', mode = 'w')
+new_y.to_hdf('../oversampled_train_data_500.h5', key = 'labels')
 
 
 '''

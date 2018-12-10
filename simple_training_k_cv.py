@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 
 # only 3 epochs
+# only CL
 
 def make_np_array(y):
 	L = []
@@ -12,6 +13,7 @@ def make_np_array(y):
 
 def getDict(labels):
 	L = labels.unique()
+	print(L)
 	d = {}
 	for i in range(len(L)):
 		one_hot = [0] * len(L)
@@ -24,10 +26,14 @@ def get_joint_df(filename):
 	store = pd.HDFStore(filename)
 	feat_mat_df = store['rpkm']
 	labels = store['labels']
-	d = getDict(labels)
-	labels = labels.apply(lambda s: d[s])
+	store.close()
 	fl = pd.concat([feat_mat_df, pd.DataFrame(labels.rename('labels'))],
 		axis = 1)
+	#fl = fl[~fl.labels.str.contains("UBERON")]
+	d = getDict(fl['labels'])
+	fl['labels'] = fl['labels'].apply(lambda s: d[s])
+
+
 	return fl, d
 
 # this function from leave_k_out
@@ -54,8 +60,9 @@ def main():
 		studies = pickle.load(f)
 
 	results = []
-	fl_overall, d = get_joint_df('../ml_10701_ps5_data/train_data.h5')
+	fl_overall, d = get_joint_df('../oversampled_train_data_500.h5')
 	for i in range(3):#len(studies)):
+		print("Before leaving out")
 		fl_train, fl_test = leave_out(fl_overall, studies[i])
 		x_tra, y_tra = split_XY(fl_train)
 		x_val, y_val = split_XY(fl_test)
@@ -91,6 +98,7 @@ print("PCA done")
 # x_train, x_test, y_train = getRelevantFeatures(x_train, y_train, x_test)
 
 def test_model(x_train, y_train, x_test, y_test):
+	print("Entered test model")
 	noOfTrainingSamples, noOfFeatures = x_train.shape
 	assert(noOfFeatures == x_test.shape[1])
 	noOfClasses = y_train.shape[1]
@@ -100,17 +108,18 @@ def test_model(x_train, y_train, x_test, y_test):
 	from dim_red_models import *
 	x_train, x_test = myReducedDimMain()
 	'''
-
+	print("Before scaler")
 	from sklearn.preprocessing import StandardScaler
 	sc = StandardScaler()
 	x_train = sc.fit_transform(X = x_train)
 	x_test = sc.transform(X = x_test)
+	print("After scaler")
 
-	print(x_train.shape, x_test.shape)
+	#print(x_train.shape, x_test.shape)
 
-	print(x_train, x_test)
-	print(type(x_train))
-	print(type(x_test))
+	#print(x_train, x_test)
+	#print(type(x_train))
+	#print(type(x_test))
 	#ssert(0)
 	print("Normalized features")
 

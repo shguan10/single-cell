@@ -4,15 +4,19 @@ import numpy as np
 
 K = 10
 
+# TAKING OUT UBERON
+
 def get_joint_df(filename):
 	store = pd.HDFStore(filename)
 	feat_mat_df = store['rpkm']
-	studies = feat_mat_df.index.to_series().apply(
-		lambda s: int(s[:s.find("_")])).unique()
 	#print(studies)
 	labels = store['labels']
+	store.close()
 	fl = pd.concat([feat_mat_df, pd.DataFrame(labels.rename('labels'))],
 		axis = 1)
+	#fl = fl[~fl.labels.str.contains("UBERON")]
+	studies = feat_mat_df.index.to_series().apply(
+		lambda s: int(s[:s.find("_")])).unique()
 	#print(fl)
 	return fl, studies
 
@@ -49,7 +53,7 @@ print(new_test)
 assert(len(train) + len(test) == len(new_train) + len(new_test))
 
 import pickle
-with open('leave_k=%d_out_studies'%K, 'wb') as f:
+with open('leave_k=%d_out_CL_only_studies'%K, 'wb') as f:
 	pickle.dump(studies, f)
 
 
