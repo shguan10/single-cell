@@ -27,8 +27,6 @@ def get_joint_df(filename):
 
 	d = getDict(fl['labels'])
 	fl['labels'] = fl['labels'].apply(lambda s: d[s])
-	print("Critical info here")
-	print(f1['labels'].apply(lambda s: np.argmax(s)).value_counts())
 
 	return fl, d
 
@@ -56,7 +54,7 @@ def main():
 		studies = pickle.load(f)
 
 	results = []
-	fl_overall, d = get_joint_df('../oversampled_train_data_500.h5')
+	fl_overall, d = get_joint_df('../ml_10701_ps5_data/train_data.h5')
 	for i in range(3):#len(studies)):
 		print("Before leaving out")
 		fl_train, fl_test = leave_out(fl_overall, studies[i])

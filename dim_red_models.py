@@ -1,11 +1,11 @@
-
+import pandas as pd
 ### ---- Dimensionality Reduction Models ---- ###
 
 # PCA (unsupervised)
 
 def PCA(x_train, x_test):
 	from sklearn.decomposition import PCA
-	pca = PCA(n_components = 100)
+	pca = PCA(n_components = 30)
 	print("PCA starting")
 	x_train = pca.fit_transform(x_train)
 	print("PCA trained")
@@ -59,7 +59,7 @@ def myReducedDim(x_train, y_train, x_test):
 	# deviation from mean - add them to the set to consider
 	print("Step 2")
 	to_keep = set()
-	features_per_type = 20
+	features_per_type = 12
 	for cell_type in y_train.unique():
 		relevant_rows = combined.loc[combined['cell_type'] == cell_type]
 		relevant_means = relevant_rows.mean(axis = 0, numeric_only = True)

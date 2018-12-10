@@ -69,8 +69,8 @@ noOfTrainingSamples, noOfFeatures = x_train.shape
 assert(noOfFeatures == x_test.shape[1])
 noOfClasses = y_train.shape[1]
 assert(noOfClasses == y_test.shape[1])
-
-print("Split data")
+#uncomment here
+#print("Split data")
 # pre-processing and NN code based on example in
 # https://medium.com/@pushkarmandot/
 # build-your-first-deep-learning-neural-network-model-using-keras-in-
@@ -78,17 +78,14 @@ print("Split data")
 
 # preprocess x data
 
-print(x_train.shape, x_test.shape)
+#print(x_train.shape, x_test.shape)
 
-'''
-from sklearn.decomposition import PCA
-pca = PCA(n_components = 796)
-print("PCA starting")
-x_train = pca.fit_transform(x_train)
-print("PCA trained")
-x_test = pca.transform(x_test)
-print("PCA done")
-'''
+from dim_red_models import *
+x_train, x_test = PCA(x_train, x_test)
+
+
+#from dim_red_models import *
+#x_train, x_test = myReducedDimMain()
 
 # x_train, x_test, y_train = getRelevantFeatures(x_train, y_train, x_test)
 
