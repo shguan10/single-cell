@@ -28,6 +28,9 @@ def getXandYandDict(filename):
 	labels = store['labels']
 	d = getDict(labels)
 	y = labels.apply(lambda s: d[s]).values
+	print("Critical info here")
+	print(labels.apply(lambda s: d[s]).apply(
+		lambda s: np.argmax(s)).value_counts())
 	assert(x.shape[0] == y.shape[0])
 	return x, y, d
 
@@ -155,7 +158,8 @@ print(matrix)
 
 matrix = []
 false_pos_L = []
-total_no_L = []
+class_no_L = []
+
 y_pred = np.argmax(y_pred, axis = 1)
 y_test = np.argmax(y_test, axis = 1)
 for i in set(y_pred):
@@ -172,15 +176,14 @@ for i in set(y_pred):
 	if total_no != 0:
 		matrix.append((i, total_no, true_positives / total_no,
 			false_positives / total_no, false_negatives / total_no))
-	false_pos_L.append(0 if (not total_no) else
-		(true_positives + false_positives) / total_no )
-	total_no_L.append(total_no)
+	false_pos_L.append(false_positives)
+	class_no_L.append(i)
 
 for x in matrix:
 	print(x)
 
 print(false_pos_L)
-print(total_no_L)
+print(class_no_L)
 '''
 d_new = {}
 for i in range(len(d)):
