@@ -5,7 +5,7 @@
 
 def PCA(x_train, x_test):
 	from sklearn.decomposition import PCA
-	pca = PCA(n_components = 100)
+	pca = PCA(n_components = 50)
 	print("PCA starting")
 	x_train = pca.fit_transform(x_train)
 	print("PCA trained")

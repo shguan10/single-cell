@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 
 import random
-
+from dim_red_models import PCA
 cl_superclass_dict = {
 
   'CL:0000057 fibroblast': 0,
@@ -146,24 +146,27 @@ combined_dict = {
 }
 
 HP = {
-  "h1_shape" : 15,
-  "h2_shape" : 200,
+  "h1_shape" : 100,
+  "h2_shape" : 50,
   "batch_size": 100,
   "loss_weights":[0,1.],
   "epochs":50,
-  "pretrained":True
+  "pretrained":True,
+  "whichtrain":"PCAcombined",
+  "stage":2
 }
 
 HPSpace = {
   "h1_shape" : [15],
-  "h2_shape" : [15,30,50,100,700],
-  "batch_size": [10,50,100],
-  "loss_weights":[0,.1,.2,.5],
-  "pretrained":[True,False]
+  "h2_shape" : [15],
+  "batch_size": [50],
+  "loss_weights":[0],
+  "pretrained":[True]
 }
 
 def hp2str():
-  return "h1_"+str(HP["h1_shape"])+\
+  return HP["whichtrain"]+str(HP["stage"])+"__"+\
+         "h1_"+str(HP["h1_shape"])+\
          "__h2_"+str(HP["h2_shape"])+\
          "__bsize_"+str(HP["batch_size"])+\
          "__lcoeffs_"+str(HP["loss_weights"])+"_"+str(1.)+\
@@ -186,7 +189,6 @@ def getXandY(filename,uberon=False,orig_labels=True,labeldict=None):
   # get x and y
   store = pd.HDFStore(filename)
   feat_mat_df = store['rpkm']
-  #x = feat_mat_df.values
   labels = store['labels']
 
   fl = pd.concat([feat_mat_df, pd.DataFrame(labels.rename('labels'))],
@@ -313,6 +315,10 @@ def cachedata(orig_labels=True,uberon=True,trainf='../data_rpkm/train_data.h5',t
     df.to_hdf(fname,"x_test")
   df = pd.DataFrame(data=y_test)
   df.to_hdf(fname,"y_test2" if orig_labels else "y_test")
+
+def cachecl():
+  cachedata(orig_labels=False,uberon=False)
+  cachedata(orig_labels=True,uberon=False)
 
 def get_cell_superclass_combined(label):
   num = combined_dict[label]
@@ -442,7 +448,7 @@ class StagedNN:
     self.stage = KM.Model(inputs=input_exp,outputs=self.o1, name="staged_nn_stage")
     self.model = KM.Model(inputs=input_exp,outputs=[self.o1,self.o2], name="staged_nn")
 
-    if pretrained: self.model.load_weights("../chkpnts/labeled_uberon-0.63.hdf5",by_name=True)
+    if pretrained: self.model.load_weights("../chkpnts/PCAcombined1__h1_15__h2_50__bsize_50__lcoeffs_0_1.0__epochs_50__ptrain_True_-vacc0.640.hdf5",by_name=True)
     # self.model.load_weights("../chkpnts/uberon2-0.48.hdf5",by_name=True)
 
     self.stage.compile(optimizer = 'sgd', loss = 'categorical_crossentropy',
@@ -474,13 +480,14 @@ class StagedNN:
 
 def pretrain():
   x_train,y_train,y_train2,x_test,y_test,y_test2 = getalldata()
+  x_train, x_test = PCA(x_train, x_test)
   network = StagedNN((x_train.shape[1],
                       HP["h1_shape"],
                       y_train.shape[1],
                       HP["h2_shape"],
                       y_train2.shape[1]))
   network.build(pretrained=False)
-  savecb = keras.callbacks.ModelCheckpoint(filepath='../chkpnts/uberon-'+hp2str()+'-vacc{val_acc:.3f}.hdf5', 
+  savecb = keras.callbacks.ModelCheckpoint(filepath='../chkpnts/'+hp2str()+'-vacc{val_acc:.3f}.hdf5', 
                                            monitor='val_acc', 
                                            verbose=1, 
                                            save_best_only=True)
@@ -497,7 +504,8 @@ def savehist(hist,name):
 
 
 def main():
-  x_train,y_train,y_train2,x_test,y_test,y_test2 = getdata()
+  x_train,y_train,y_train2,x_test,y_test,y_test2 = getalldata()
+  x_train, x_test = PCA(x_train, x_test)
 
   network = StagedNN((x_train.shape[1],
                       HP["h1_shape"],
@@ -507,7 +515,7 @@ def main():
   network.build(pretrained=HP["pretrained"])
 
   # sgd = optimizers.SGD(lr = 0.1, decay = 1e-6, momentum = 0.9, nesterov = True)
-  savecb = keras.callbacks.ModelCheckpoint(filepath='../chkpnts/uberon2-'+hp2str()+'-vo2acc{val_o2_acc:.3f}.hdf5', 
+  savecb = keras.callbacks.ModelCheckpoint(filepath='../chkpnts/'+hp2str()+'-vo2acc{val_o2_acc:.3f}.hdf5', 
                                            monitor='val_o2_acc', 
                                            verbose=1, 
                                            save_best_only=True)
@@ -561,12 +569,12 @@ def labellayers():
   model.save_weights("../chkpnts/labeled_uberon-0.63.hdf5")
 
 if __name__ == '__main__':
-  # cacheuberon()
+  # cachecl()
   # normalizeall()
   # pretrain()
   while True:
     for e in HPSpace: 
       choices = HPSpace[e]
       HP[e] = random.choice(choices)
-    for _ in range(5): pretrain()      
+    for _ in range(1): main()      
   # labellayers()
