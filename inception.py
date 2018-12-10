@@ -77,6 +77,74 @@ uberon_classes = {
   "UBERON:0001851 cortex":6
 }
 
+combined_dict = {
+
+  'CL:0000057 fibroblast': 0,
+  'CL:0000137 osteocyte': 0,
+
+  'CL:1000497 kidney cell': 1,
+  'CL:0008019 mesenchymal cell': 1,
+  'CL:0002365 medullary thymic epithelial cell' : 1,
+
+  'CL:0000163 endocrine cell': 2,
+  'CL:0000169 type B pancreatic cell': 2,
+
+  'CL:0002321 embryonic cell': 3,
+  'CL:0000353 blastoderm cell': 3,
+  'CL:0002322 embryonic stem cell': 3,
+
+  'CL:0000192 smooth muscle cell': 4,
+  'CL:0000746 cardiac muscle cell': 4,
+
+  'CL:0001056 dendritic cell, human': 5,
+  'CL:0000084 T cell': 5,
+  'CL:0000235 macrophage': 5,
+
+  'CL:0000081 blood cell': 6,
+  'CL:0000763 myeloid cell': 6,
+
+  'CL:0002319 neural cell': 7,
+  'CL:0000540 neuron': 7,
+  'CL:0000127 astrocyte': 7,
+
+  'CL:0002034 long term hematopoietic stem cell': 8,
+  'CL:0002033 short term hematopoietic stem cell': 8,
+  'CL:0000037 hematopoietic stem cell': 8,
+
+  "UBERON:0002048 lung":9,
+  "UBERON:0000115 lung epithelium":9,
+
+  "UBERON:0000955 brain":10,
+  "UBERON:0002038 substantia nigra":10,
+  "UBERON:0001891 midbrain":10,
+
+  "UBERON:0001954 Ammon's horn":11,
+  "UBERON:0001898 hypothalamus":11,
+
+  "UBERON:0002435 striatum":12,
+  "UBERON:0010743 meningeal cluster":12,
+
+
+  "UBERON:0001003 skin epidermis":13,
+  "UBERON:0001997 olfactory epithelium":13,
+  "UBERON:0001902 epithelium of small intestine":13,
+
+  "UBERON:0000473 testis":14,
+  "UBERON:0000992 female gonad":14,
+  "UBERON:0000922 embryo":14,
+
+  "UBERON:0001264 pancreas":15,
+  "UBERON:0000007 pituitary gland":15,
+
+  "UBERON:0000045 ganglion":16,
+  "UBERON:0000044 dorsal root ganglion":16,
+  "UBERON:0004129 growth plate cartilage":16,
+
+  "UBERON:0000966 retina":17,
+  "UBERON:0002107 liver":17,
+  "UBERON:0001851 cortex":17
+}
+
 HP = {
   "h1_shape" : 15,
   "h2_shape" : 200,
@@ -245,7 +313,91 @@ def cachedata(orig_labels=True,uberon=True,trainf='../data_rpkm/train_data.h5',t
     df.to_hdf(fname,"x_test")
   df = pd.DataFrame(data=y_test)
   df.to_hdf(fname,"y_test2" if orig_labels else "y_test")
+
+def get_cell_superclass_combined(label):
+  num = combined_dict[label]
+  vec = np.zeros(18)
+  vec[num] = 1
+  return vec
+
+def normalizeall():
+  # GET TRAIN
+  store = pd.HDFStore("../data_rpkm/train_data.h5")
+  feat_mat_df = store['rpkm']
+  labels = store['labels']
+  store.close()
+
+  fl = pd.concat([feat_mat_df, pd.DataFrame(labels.rename('labels'))],
+                  axis = 1)
+
+  x_df = fl.drop(labels = 'labels', axis=1)
+  x_train = x_df.values
+
+  y=fl['labels']
+  mapping=pd.get_dummies(y)
+  labeldict={}
+  for lab,vec in zip(y,mapping.values): labeldict[lab] = vec
+  y_train2=mapping.values
+  y_train = y.map(get_cell_superclass_combined)
+
+  # GET TEST
+  store = pd.HDFStore("../data_rpkm/test_data.h5")
+  feat_mat_df = store['rpkm']
+  labels = store['labels']
+  store.close()
+
+  fl = pd.concat([feat_mat_df, pd.DataFrame(labels.rename('labels'))],
+                  axis = 1)
+  y=fl['labels']
+  x_df = fl.drop(labels = 'labels', axis=1)
+  x_test = x_df.values
+
+  y_test2=y.map(labeldict)
+  y_test = y.map(get_cell_superclass_combined)
+
+  y_train = np.array(list(y_train))
+  y_test = np.array(list(y_test))
+  y_test2 = np.array(list(y_test2))
+  print(y_train.shape,y_train2.shape,y_test.shape,y_test2.shape)
+
+  # normalize x_train and x_test
+  from sklearn.preprocessing import StandardScaler
+  sc = StandardScaler()
+  x_train = sc.fit_transform(X = x_train)
+  x_test = sc.transform(X = x_test)
+  print("normalized data")
   
+  # WRITE TO H5
+  fname = "../data_rpkm/allnormalized.h5"
+  df = pd.DataFrame(data=x_train)
+  df.to_hdf(fname,"x_train")
+  df = pd.DataFrame(data=y_train)
+  df.to_hdf(fname,"y_train")
+  df = pd.DataFrame(data=y_train2)
+  df.to_hdf(fname,"y_train2")
+
+  df = pd.DataFrame(data=x_test)
+  df.to_hdf(fname,"x_test")
+  df = pd.DataFrame(data=y_test)
+  df.to_hdf(fname,"y_test")
+  df = pd.DataFrame(data=y_test2)
+  df.to_hdf(fname,"y_test2")
+
+  df = pd.DataFrame(data=labeldict)
+  df.to_hdf(fname,"labeldict")
+  
+def getalldata():
+  fname = "../data_rpkm/allnormalized.h5"
+  store = pd.HDFStore(fname)
+  x_train = store["x_train"].values
+  y_train = store["y_train"].values
+  y_train2 = store["y_train2"].values
+  x_test = store["x_test"].values
+  y_test = store["y_test"].values
+  y_test2 = store["y_test2"].values
+  store.close()
+  return x_train,y_train,y_train2,x_test,y_test,y_test2
+
 def getdata(uberon=True):
   fname = "uberon.h5" if uberon else "cl.h5"
   store = pd.HDFStore(fname)
@@ -301,7 +453,7 @@ class StagedNN:
   def trainstage(self,train_vectors,test_vectors,callbacks=[]):
     x_train,y_train = train_vectors
     x_test,y_test = test_vectors
-    return self.model.fit(x_train, 
+    return self.stage.fit(x_train, 
                           y_train, 
                           batch_size = HP["batch_size"], 
                           epochs = HP["epochs"],
@@ -321,7 +473,7 @@ class StagedNN:
                           callbacks=callbacks)
 
 def pretrain():
-  x_train,y_train,y_train2,x_test,y_test,y_test2 = getdata()
+  x_train,y_train,y_train2,x_test,y_test,y_test2 = getalldata()
   network = StagedNN((x_train.shape[1],
                       HP["h1_shape"],
                       y_train.shape[1],
@@ -410,9 +562,11 @@ def labellayers():
 
 if __name__ == '__main__':
   # cacheuberon()
+  # normalizeall()
+  # pretrain()
   while True:
     for e in HPSpace: 
       choices = HPSpace[e]
       HP[e] = random.choice(choices)
-    for _ in range(5): main()      
+    for _ in range(5): pretrain()      
   # labellayers()
