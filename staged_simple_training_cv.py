@@ -143,7 +143,7 @@ def split_XY(fl):
 def main_stage_1():
 	with open('leave_k=10_out_studies', 'rb') as f:
 		studies = pickle.load(f)
-
+	print(studies)
 	results = []
 	fl_overall, d = get_joint_df('../ml_10701_ps5_data/train_data.h5')
 	for i in range(len(studies)):

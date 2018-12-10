@@ -42,7 +42,7 @@ def getXandYwithDict(filename, d):
 	return x, y
 
 x_train, y_train, d = getXandYandDict(#
-	'../oversampled_train_data.h5')#'../ml_10701_ps5_data/train_data.h5')
+	'../ml_10701_ps5_data/train_data.h5')#'../ml_10701_ps5_data/train_data.h5')
 print("Normalize training by row")
 #x_train = normalize_rows(x_train)
 print(x_train.sum(axis=1))
@@ -154,6 +154,8 @@ np.set_printoptions(threshold = np.nan)
 print(matrix)
 
 matrix = []
+false_pos_L = []
+total_no_L = []
 y_pred = np.argmax(y_pred, axis = 1)
 y_test = np.argmax(y_test, axis = 1)
 for i in set(y_pred):
@@ -170,9 +172,15 @@ for i in set(y_pred):
 	if total_no != 0:
 		matrix.append((i, total_no, true_positives / total_no,
 			false_positives / total_no, false_negatives / total_no))
+	false_pos_L.append(0 if (not total_no) else
+		(true_positives + false_positives) / total_no )
+	total_no_L.append(total_no)
 
 for x in matrix:
 	print(x)
+
+print(false_pos_L)
+print(total_no_L)
 '''
 d_new = {}
 for i in range(len(d)):

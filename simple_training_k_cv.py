@@ -32,7 +32,8 @@ def get_joint_df(filename):
 	#fl = fl[~fl.labels.str.contains("UBERON")]
 	d = getDict(fl['labels'])
 	fl['labels'] = fl['labels'].apply(lambda s: d[s])
-
+	print("Critical info here")
+	print(f1['labels'].apply(lambda s: np.argmax(s)).value_counts())
 
 	return fl, d
 
